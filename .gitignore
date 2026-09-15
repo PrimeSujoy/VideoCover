@@ -9,6 +9,9 @@
 # Runtime logs (may contain sensitive request URLs)
 *.log
 
+# Streamlit local secrets
+.streamlit/secrets.toml
+
 # Python
 __pycache__/
 *.py[cod]

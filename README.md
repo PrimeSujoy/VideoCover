@@ -415,6 +415,27 @@ any similar provider:
    the Dockerfile command.
 6. Keep the instance count at `1` and disable horizontal autoscaling.
 
+### 🔴 Streamlit Community Cloud (experimental)
+
+Streamlit deployment is supported through `streamlit_app.py`, but Community
+Cloud hibernates apps that receive no web traffic for 12 hours. Use this option
+for testing or personal use, not guaranteed 24/7 bot uptime.
+
+1. Open Streamlit Community Cloud and select `PrimeSujoy/VideoCover`.
+2. Select branch `main`.
+3. Set **Main file path** to `streamlit_app.py`.
+4. Open **Advanced settings** and select Python `3.12`.
+5. In **Secrets**, paste TOML values using the format shown in
+   `.streamlit/secrets.toml.example`.
+6. Click **Save**, then **Deploy**.
+
+Do not add `PORT` to Streamlit secrets. Streamlit manages its own HTTP port.
+Run only one deployment of the same `BOT_TOKEN` at a time.
+
+References: [Streamlit deployment](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy),
+[secrets management](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management),
+and [app hibernation](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app).
+
 ---
 
 ## 🆘 Troubleshooting

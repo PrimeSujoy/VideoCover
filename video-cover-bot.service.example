@@ -1,0 +1,21 @@
+# Don't Remove Credit Tg - @NexonBots
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@NexonBots
+# Ask Doubt on telegram @NexonContactBot
+
+[Unit]
+Description=Telegram Video Cover Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=videobot
+Group=videobot
+WorkingDirectory=/opt/video-cover-bot
+EnvironmentFile=/opt/video-cover-bot/config.env
+ExecStart=/opt/video-cover-bot/.venv/bin/python /opt/video-cover-bot/bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

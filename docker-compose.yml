@@ -1,0 +1,15 @@
+# Don't Remove Credit Tg - @NexonBots
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@NexonBots
+# Ask Doubt on telegram @NexonContactBot
+
+services:
+  bot:
+    build: .
+    container_name: video-cover-bot
+    restart: unless-stopped
+    env_file:
+      - config.env
+    environment:
+      PORT: "8000"
+    ports:
+      - "8000:8000"

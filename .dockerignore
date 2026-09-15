@@ -1,0 +1,13 @@
+# Don't Remove Credit Tg - @NexonBots
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@NexonBots
+# Ask Doubt on telegram @NexonContactBot
+
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+*.log
+config.env
+.env

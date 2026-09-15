@@ -1,0 +1,55 @@
+{
+  "name": "Video Cover Bot",
+  "description": "Telegram bot that automatically applies saved thumbnail covers to channel videos. # Don't Remove Credit Tg - @NexonBots | # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@NexonBots | # Ask Doubt on telegram @NexonContactBot",
+  "repository": "https://github.com/PrimeSujoy/VideoCover",
+  "keywords": ["telegram", "bot", "python", "mongodb"],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram bot token from @BotFather",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "Telegram numeric user ID of the bot owner",
+      "required": true
+    },
+    "OWNER_USERNAME": {
+      "description": "Bot owner's Telegram username without @",
+      "required": false
+    },
+    "MONGODB_URI": {
+      "description": "MongoDB Atlas or other externally reachable MongoDB URI",
+      "required": true
+    },
+    "MONGODB_DATABASE": {
+      "description": "MongoDB database name",
+      "value": "video_cover_bot",
+      "required": true
+    },
+    "FORCE_SUB_CHANNEL_ID": {
+      "description": "Optional force-subscribe channel ID, for example -1001234567890",
+      "required": false
+    },
+    "LOG_CHANNEL_ID": {
+      "description": "Optional channel ID for bot logs",
+      "required": false
+    },
+    "FORCE_SUB_BANNER_URL": {
+      "description": "Optional public URL for the force-subscribe banner",
+      "required": false
+    },
+    "HOME_MENU_BANNER_URL": {
+      "description": "Optional public URL for the home-menu banner",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}

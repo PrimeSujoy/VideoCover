@@ -760,6 +760,44 @@ async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 
+def build_home_text(first_name: str) -> str:
+    """Build the simple English home screen shown by /start and Back."""
+    return (
+        f"👋 <b>Hello, {escape(first_name)}!</b>\n\n"
+        "🎬 <b>Video Cover Bot</b>\n"
+        "Add a custom cover to your videos in seconds.\n\n"
+        "💬 <b>Use it in private chat</b>\n"
+        "1. Send a photo to save it as your cover.\n"
+        "2. Send a video here.\n"
+        "3. Get your video back with the new cover.\n\n"
+        "📢 <b>Use it in your channel</b>\n"
+        "1. Add the bot to your channel as an admin.\n"
+        "2. Post a video in the channel.\n"
+        "3. The cover will be added automatically.\n\n"
+        "🚀 <b>Ready to start?</b>\n"
+        "Send a photo now to set your cover."
+    )
+
+
+def build_home_keyboard(bot_username: str) -> InlineKeyboardMarkup:
+    """Build the main navigation keyboard."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            "➕ Add to Channel",
+            url=f"https://t.me/{bot_username}?startchannel=true",
+        )],
+        [
+            InlineKeyboardButton("🖼 Set Cover", callback_data="menu_settings"),
+            InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels"),
+        ],
+        [
+            InlineKeyboardButton("❓ Help", callback_data="menu_help"),
+            InlineKeyboardButton("ℹ️ About", callback_data="menu_about"),
+        ],
+        [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer")],
+    ])
+
+
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle callback query with proper force-sub verification"""
     query = update.callback_query
@@ -1079,27 +1117,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Handle back button - return to home menu
         if key == "back":
             bot_username = get_bot_username()
-            text = (
-                f"👋 <b>Hello {query.from_user.first_name}!</b>\n\n"
-                "🎬 <b>Thumbnail Cover Bot</b>\n"
-                "Automatically apply thumbnails to your videos!\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "⚡ <b>How It Works:</b>\n\n"
-                "📸 <b>Step 1:</b> Send your thumbnail image\n"
-                "   (The bot will save it)\n\n"
-                "🎥 <b>Step 2:</b> Post a video in your channel\n"
-                "   (The bot will apply the cover automatically!)\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━"
-            )
-            kb_rows = [
-                [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{bot_username}?startchannel=true")],
-                [InlineKeyboardButton("📸 Thumbnail Set", callback_data="menu_settings"),
-                 InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels")],
-                [InlineKeyboardButton("❓ Help", callback_data="menu_help"),
-                 InlineKeyboardButton("ℹ️ About", callback_data="menu_about")],
-                [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer")]
-            ]
-            kb = InlineKeyboardMarkup(kb_rows)
+            text = build_home_text(query.from_user.first_name or "User")
+            kb = build_home_keyboard(bot_username)
             try:
                 msg = query.message
                 if getattr(msg, "photo", None):
@@ -1382,38 +1401,8 @@ async def open_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.effective_user:
         first_name = update.effective_user.first_name or "User"
     
-    text = (
-        f"👋 <b>Hello {first_name}!</b>\n\n"
-        "🎬 <b>Thumbnail Cover Bot</b>\n"
-        "Automatically apply thumbnails to your videos!\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "⚡ <b>How It Works:</b>\n\n"
-        "📸 <b>Step 1:</b> Send your thumbnail image\n"
-        "   (The bot will save it)\n\n"
-        "🎥 <b>Step 2:</b> Post a video in your channel\n"
-        "   (The bot will apply the cover automatically!)\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "✨ <b>Features:</b>\n"
-        "• 🚀 Super fast processing\n"
-        "• 📢 Multiple channels support\n"
-        "• 🎨 High quality covers\n"
-        "• 🔄 Auto apply on every video\n"
-        "• 📊 24/7 Active\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━"
-    )
-
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{bot_username}?startchannel=true")],
-        [
-            InlineKeyboardButton("📸 Thumbnail Set", callback_data="menu_settings"),
-            InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels")
-        ],
-        [
-            InlineKeyboardButton("❓ Help", callback_data="menu_help"),
-            InlineKeyboardButton("ℹ️ About", callback_data="menu_about")
-        ],
-        [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer")]
-    ])
+    text = build_home_text(first_name)
+    kb = build_home_keyboard(bot_username)
 
     if update.callback_query:
         msg = update.callback_query.message
@@ -1454,38 +1443,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     bot_username = get_bot_username()
     
-    welcome_text = (
-        f"👋 <b>Hello {first_name}!</b>\n\n"
-        "🎬 <b>Thumbnail Cover Bot</b>\n"
-        "Automatically apply thumbnails to your videos!\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "⚡ <b>How It Works:</b>\n\n"
-        "📸 <b>Step 1:</b> Send your thumbnail image\n"
-        "   (The bot will save it)\n\n"
-        "🎥 <b>Step 2:</b> Post a video in your channel\n"
-        "   (The bot will apply the cover automatically!)\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "✨ <b>Features:</b>\n"
-        "• 🚀 Super fast processing\n"
-        "• 📢 Multiple channels support\n"
-        "• 🎨 High quality covers\n"
-        "• 🔄 Auto apply on every video\n"
-        "• 📊 24/7 Active\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━"
-    )
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{bot_username}?startchannel=true")],
-        [
-            InlineKeyboardButton("📸 Thumbnail Set", callback_data="menu_settings"),
-            InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels")
-        ],
-        [
-            InlineKeyboardButton("❓ Help", callback_data="menu_help"),
-            InlineKeyboardButton("ℹ️ About", callback_data="menu_about")
-        ],
-        [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer")]
-    ])
+    welcome_text = build_home_text(first_name)
+    kb = build_home_keyboard(bot_username)
     
     if update.callback_query:
         msg = update.callback_query.message

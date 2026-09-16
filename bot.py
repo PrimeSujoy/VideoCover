@@ -2020,14 +2020,17 @@ async def _process_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cover = get_thumbnail(user_id)
     video = update.message.video
 
+    # The video is being reused by its Telegram file_id, so Telegram already has
+    # its real dimensions. Sending very large values explicitly (for example an
+    # 8K video's 7680x4320) makes sendVideo reject the request with
+    # "Dimensions of the photo are too big" while editMessageMedia accepts the
+    # same video. Let Telegram read the dimensions from the stored file instead.
     await update.message.reply_video(
         video=video.file_id,
         cover=cover,
         caption=update.message.caption,
         caption_entities=update.message.caption_entities or None,
         duration=video.duration,
-        width=video.width,
-        height=video.height,
         supports_streaming=True,
         has_spoiler=bool(getattr(update.message, "has_media_spoiler", False)),
         show_caption_above_media=getattr(

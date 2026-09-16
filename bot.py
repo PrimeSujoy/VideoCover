@@ -216,7 +216,26 @@ OWNER_ID_LIST = parse_owner_ids()
 OWNER_IDS = frozenset(OWNER_ID_LIST)
 # Primary owner is retained for links and other single-owner fallbacks.
 OWNER_ID = OWNER_ID_LIST[0] if OWNER_ID_LIST else 0
+
+
+def parse_force_sub_channels(raw_channels: str | None) -> tuple[int | str, ...]:
+    """Parse space-separated numeric channel IDs or public usernames."""
+    channels = []
+    for raw_channel in (raw_channels or "").replace(",", " ").split():
+        channel = raw_channel.strip()
+        if not channel:
+            continue
+        try:
+            parsed_channel = int(channel)
+        except ValueError:
+            parsed_channel = channel if channel.startswith("@") else f"@{channel}"
+        if parsed_channel not in channels:
+            channels.append(parsed_channel)
+    return tuple(channels)
+
+
 FORCE_SUB_CHANNEL_ID = os.environ.get("FORCE_SUB_CHANNEL_ID")
+FORCE_SUB_CHANNEL_IDS = parse_force_sub_channels(FORCE_SUB_CHANNEL_ID)
 FORCE_SUB_BANNER_URL = os.environ.get("FORCE_SUB_BANNER_URL")
 HOME_MENU_BANNER_URL = os.environ.get("HOME_MENU_BANNER_URL")
 OWNER_USERNAME = "NexonContactBot"
@@ -395,7 +414,7 @@ async def check_admin_and_banned(update: Update, user_id_to_check: int = None) -
 
 """------------------FORCE-SUB CHECK-----------------"""
 
-async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+async def _legacy_check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """
     Check if user has verified through force-sub AND is still a member.
     Verifies membership for cached users to ensure they haven't left the channel.
@@ -592,6 +611,164 @@ async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return True  # Fail open
 
 
+async def _get_missing_force_sub_channels(context, user_id: int) -> list[int | str]:
+    """Return every configured channel the user has not joined."""
+    missing_channels = []
+    allowed_statuses = (
+        ChatMemberStatus.MEMBER,
+        ChatMemberStatus.ADMINISTRATOR,
+        ChatMemberStatus.OWNER,
+    )
+
+    for channel_id in FORCE_SUB_CHANNEL_IDS:
+        try:
+            member = await context.bot.get_chat_member(
+                chat_id=channel_id,
+                user_id=user_id,
+            )
+            if member.status not in allowed_statuses:
+                missing_channels.append(channel_id)
+        except Exception as e:
+            logger.warning(
+                "Could not check force-sub membership for channel %s: %s",
+                channel_id,
+                e,
+            )
+            missing_channels.append(channel_id)
+
+    return missing_channels
+
+
+async def _get_force_sub_channel_details(bot, channel_id: int | str) -> tuple[str, str | None]:
+    """Resolve a force-sub channel's display name and join link."""
+    fallback_name = str(channel_id)
+    try:
+        chat = await bot.get_chat(channel_id)
+        channel_name = chat.title or chat.username or fallback_name
+
+        if chat.username:
+            return channel_name, f"https://t.me/{chat.username}"
+        if getattr(chat, "invite_link", None):
+            return channel_name, chat.invite_link
+
+        invite = await bot.create_chat_invite_link(chat_id=channel_id)
+        return channel_name, invite.invite_link
+    except Exception as e:
+        logger.warning(f"Could not resolve force-sub channel {channel_id}: {e}")
+        if isinstance(channel_id, str) and channel_id.startswith("@"):
+            return fallback_name, f"https://t.me/{channel_id[1:]}"
+        return fallback_name, None
+
+
+async def _show_force_sub_prompt(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    missing_channels: list[int | str],
+) -> None:
+    """Show join buttons for all missing channels without a verify button."""
+    keyboard_rows = []
+    channel_names = []
+
+    for index, channel_id in enumerate(missing_channels, start=1):
+        channel_name, invite_link = await _get_force_sub_channel_details(
+            context.bot,
+            channel_id,
+        )
+        channel_names.append(f"{index}. <b>{escape(channel_name)}</b>")
+        if invite_link:
+            keyboard_rows.append([
+                InlineKeyboardButton(
+                    f"📢 Join {channel_name}"[:60],
+                    url=invite_link,
+                )
+            ])
+
+    keyboard_rows.append([
+        InlineKeyboardButton("✖️ Close", callback_data="close_banner")
+    ])
+    keyboard = InlineKeyboardMarkup(keyboard_rows)
+    prompt = (
+        "🔒 <b>Channel Subscription Required</b>\n\n"
+        "Please join all the channels below:\n\n"
+        + "\n".join(channel_names)
+        + "\n\n✅ After joining, send /start again.\n"
+        "The bot will verify your membership automatically."
+    )
+
+    banner = FORCE_SUB_BANNER_URL
+    if update.message:
+        if banner:
+            try:
+                photo = InputFile(banner) if os.path.isfile(banner) else banner
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=prompt,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+                return
+            except Exception as e:
+                logger.warning(f"Could not send force-sub banner: {e}")
+        await update.message.reply_text(
+            prompt,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+        return
+
+    if update.callback_query:
+        message = update.callback_query.message
+        try:
+            if getattr(message, "photo", None):
+                await message.edit_caption(
+                    caption=prompt,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+            else:
+                await message.edit_text(
+                    prompt,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+        except BadRequest:
+            pass
+
+
+async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Automatically verify that the user joined every configured channel."""
+    user_id = update.effective_user.id
+
+    if is_admin(user_id) or not FORCE_SUB_CHANNEL_IDS:
+        return True
+
+    now = time.time()
+    if _force_sub_cache.get(user_id, 0) > now:
+        return True
+
+    missing_channels = await _get_missing_force_sub_channels(context, user_id)
+    if not missing_channels:
+        verified_users.add(user_id)
+        _force_sub_cache[user_id] = now + 300
+        logger.info(
+            "User %s automatically verified in all %s force-sub channels",
+            user_id,
+            len(FORCE_SUB_CHANNEL_IDS),
+        )
+        return True
+
+    verified_users.discard(user_id)
+    _force_sub_cache.pop(user_id, None)
+    logger.info(
+        "User %s is missing %s of %s force-sub channels",
+        user_id,
+        len(missing_channels),
+        len(FORCE_SUB_CHANNEL_IDS),
+    )
+    await _show_force_sub_prompt(update, context, missing_channels)
+    return False
+
+
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -607,8 +784,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     logger.info(f"👤 User ID: {user_id} | Channel ID Config: {FORCE_SUB_CHANNEL_ID}")
     
-    # Handle force-sub verification button
+    # Backward compatibility for verification buttons sent before this update.
     if query.data == "check_fsub":
+        await query.answer("Checking all channel subscriptions...")
+        if await check_force_sub(update, context):
+            await register_verified_user(update, context)
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+            await open_home(update, context)
+        return
+
+    # Disabled legacy single-channel verification path.
+    if query.data == "_legacy_check_fsub":
         logger.info(f"🔍 Verify button clicked by user {user_id}")
         
         if not FORCE_SUB_CHANNEL_ID:

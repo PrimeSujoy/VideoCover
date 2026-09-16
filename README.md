@@ -145,7 +145,7 @@ python bot.py
 
 BOT_TOKEN=your_token_from_botfather
 OWNER_ID=123456789 987654321
-FORCE_SUB_CHANNEL_ID=-1002659719637
+FORCE_SUB_CHANNEL_ID=-1002659719637 -1003183447271
 # Optional: receives first-time verified user registrations only
 LOG_CHANNEL_ID=-1002659719637
 MONGODB_URI=mongodb://localhost:27017
@@ -246,7 +246,7 @@ other platforms that can run a Dockerfile or `python bot.py`.
 | `MONGODB_URI` | Yes | Externally reachable MongoDB connection string |
 | `MONGODB_DATABASE` | No | Database name; defaults to `video_cover_bot` |
 | `OWNER_USERNAME` | No | Owner username without `@` |
-| `FORCE_SUB_CHANNEL_ID` | No | Force-subscribe channel ID |
+| `FORCE_SUB_CHANNEL_ID` | No | One or more force-subscribe channel IDs separated by spaces |
 | `LOG_CHANNEL_ID` | No | Optional channel for first-time verified user registration logs only |
 | `FORCE_SUB_BANNER_URL` | No | Public force-subscribe banner URL |
 | `HOME_MENU_BANNER_URL` | No | Public home-menu banner URL |

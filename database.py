@@ -9,6 +9,7 @@ Handles all database operations for user thumbnails
 
 import os
 import logging
+import time
 from datetime import datetime
 from pymongo import MongoClient
 
@@ -309,6 +310,21 @@ def get_all_user_ids() -> list[int]:
     except Exception as e:
         logger.error(f"❌ Error getting broadcast recipients: {e}")
         return []
+
+
+def get_database_health() -> dict:
+    """Return MongoDB availability and ping latency for the status command."""
+    if not DB_AVAILABLE:
+        return {"connected": False, "latency_ms": None}
+
+    started_at = time.perf_counter()
+    try:
+        mongo_client.admin.command("ping")
+        latency_ms = (time.perf_counter() - started_at) * 1000
+        return {"connected": True, "latency_ms": latency_ms}
+    except Exception as e:
+        logger.warning(f"MongoDB health check failed: {e}")
+        return {"connected": False, "latency_ms": None}
 
 
 """═══════════════════ LOGGING FUNCTIONS ═══════════════════"""

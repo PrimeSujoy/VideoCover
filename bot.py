@@ -26,7 +26,7 @@ from health_server import start_health_server
 from database import (
     register_user, save_thumbnail, get_thumbnail, delete_thumbnail, has_thumbnail,
     ban_user, unban_user, is_user_banned, get_total_users, get_banned_users_count, get_stats,
-    get_all_user_ids,
+    get_all_user_ids, get_database_health,
     format_log_message, log_new_user,
     add_user_channel, remove_user_channel, get_user_channels, get_user_by_channel
 )
@@ -2017,56 +2017,99 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show bot status (uptime, CPU, RAM)"""
+    """Show advanced bot, hosting, and database health statistics."""
     if not await check_admin(update):
         return
-    
-    import psutil
-    import time
-    
+
+    status_message = await update.message.reply_text("⏳ Collecting system statistics...")
+
     try:
-        # Bot uptime (from when this process started)
-        uptime_seconds = max(0, int(time.time() - BOT_STARTED_AT))
-        uptime_days, remainder = divmod(uptime_seconds, 86400)
-        uptime_hours, remainder = divmod(remainder, 3600)
-        uptime_mins, _ = divmod(remainder, 60)
-        uptime_parts = []
-        if uptime_days:
-            uptime_parts.append(f"{uptime_days}d")
-        if uptime_hours or uptime_days:
-            uptime_parts.append(f"{uptime_hours}h")
-        uptime_parts.append(f"{uptime_mins}m")
-        uptime_text = " ".join(uptime_parts)
-        
-        # System stats
-        cpu_percent = psutil.cpu_percent(interval=1)
+        import platform
+        import psutil
+        import telegram
+
+        ping_started_at = time.perf_counter()
+        await status_message.edit_text("⏳ Measuring Telegram and server health...")
+        telegram_ping_ms = (time.perf_counter() - ping_started_at) * 1000
+
+        # Run blocking system and database probes outside the bot event loop.
+        cpu_percent, database_health = await asyncio.gather(
+            asyncio.to_thread(psutil.cpu_percent, 0.5),
+            asyncio.to_thread(get_database_health),
+        )
+
+        process = psutil.Process(os.getpid())
         ram = psutil.virtual_memory()
-        ram_percent = ram.percent
-        
-        cpu_icon = "🟢" if cpu_percent < 60 else "🟡" if cpu_percent < 85 else "🔴"
-        ram_icon = "🟢" if ram_percent < 60 else "🟡" if ram_percent < 85 else "🔴"
-        used_ram_mb = ram.used // (1024**2)
-        total_ram_mb = ram.total // (1024**2)
+        disk = psutil.disk_usage(os.path.abspath(os.sep))
+        logical_cores = psutil.cpu_count(logical=True) or 0
+        physical_cores = psutil.cpu_count(logical=False) or logical_cores
+        process_memory = process.memory_info().rss
+
+        bot_uptime = max(0, int(time.time() - BOT_STARTED_AT))
+        server_uptime = max(0, int(time.time() - psutil.boot_time()))
+
+        def format_duration(total_seconds: int) -> str:
+            days, remainder = divmod(total_seconds, 86400)
+            hours, remainder = divmod(remainder, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return f"{days}d {hours:02d}h {minutes:02d}m {seconds:02d}s"
+
+        def format_size(size_bytes: int) -> str:
+            size = float(size_bytes)
+            for unit in ("B", "KB", "MB", "GB", "TB"):
+                if size < 1024 or unit == "TB":
+                    return f"{size:.2f} {unit}"
+                size /= 1024
+            return "0 B"
+
+        def progress_bar(percentage: float, length: int = 10) -> str:
+            safe_percentage = max(0.0, min(100.0, percentage))
+            filled = round(safe_percentage / 100 * length)
+            return "█" * filled + "░" * (length - filled)
+
+        database_text = "🔴 Disconnected"
+        if database_health["connected"]:
+            database_text = (
+                f"🟢 Connected ({database_health['latency_ms']:.1f} ms)"
+            )
 
         text = (
-            "⏱️ <b>Bot Status</b>\n\n"
+            "⏱️ <b>Advanced Bot Status</b>\n\n"
             "🟢 <b>Status:</b> Online\n"
-            f"⏰ <b>Uptime:</b> {uptime_text}\n\n"
-            "🖥️ <b>System Resources</b>\n"
-            f"{cpu_icon} <b>CPU:</b> {cpu_percent:.1f}%\n"
-            f"{ram_icon} <b>RAM:</b> {ram_percent:.1f}% "
-            f"({used_ram_mb} MB / {total_ram_mb} MB)"
+            f"📡 <b>Telegram API:</b> {telegram_ping_ms:.1f} ms\n"
+            f"🗄️ <b>MongoDB:</b> {database_text}\n\n"
+            "⌛ <b>Uptime</b>\n"
+            f"├ <b>Bot:</b> {format_duration(bot_uptime)}\n"
+            f"└ <b>Server:</b> {format_duration(server_uptime)}\n\n"
+            "🖥️ <b>CPU</b>\n"
+            f"├ <code>{progress_bar(cpu_percent)}</code> {cpu_percent:.1f}%\n"
+            f"└ <b>Cores:</b> {physical_cores} physical / {logical_cores} logical\n\n"
+            "🧠 <b>RAM</b>\n"
+            f"├ <code>{progress_bar(ram.percent)}</code> {ram.percent:.1f}%\n"
+            f"├ <b>Used:</b> {format_size(ram.used)}\n"
+            f"├ <b>Available:</b> {format_size(ram.available)}\n"
+            f"└ <b>Total:</b> {format_size(ram.total)}\n\n"
+            "💾 <b>Disk</b>\n"
+            f"├ <code>{progress_bar(disk.percent)}</code> {disk.percent:.1f}%\n"
+            f"├ <b>Used:</b> {format_size(disk.used)}\n"
+            f"├ <b>Free:</b> {format_size(disk.free)}\n"
+            f"└ <b>Total:</b> {format_size(disk.total)}\n\n"
+            "⚙️ <b>Runtime</b>\n"
+            f"├ <b>Bot memory:</b> {format_size(process_memory)}\n"
+            f"├ <b>Python:</b> {platform.python_version()}\n"
+            f"└ <b>PTB:</b> {telegram.__version__}"
         )
-        await update.message.reply_text(text, parse_mode="HTML")
+        await status_message.edit_text(text, parse_mode="HTML")
     except ImportError:
         text = (
             "⏱️ <b>Bot Status</b>\n\n"
             "🟢 <b>Status:</b> Online\n\n"
             "⚠️ Install <code>psutil</code> to view system resource usage."
         )
-        await update.message.reply_text(text, parse_mode="HTML")
+        await status_message.edit_text(text, parse_mode="HTML")
     except Exception as e:
-        await update.message.reply_text("❌ ᴇʀʀᴏʀ: " + str(e))
+        logger.error(f"Status command failed: {e}", exc_info=True)
+        await status_message.edit_text("❌ Failed to collect system statistics.")
 
 
 async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):

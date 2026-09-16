@@ -24,8 +24,9 @@ from telegram.error import BadRequest, RetryAfter
 import random
 from health_server import start_health_server
 from database import (
-    save_thumbnail, get_thumbnail, delete_thumbnail, has_thumbnail,
+    register_user, save_thumbnail, get_thumbnail, delete_thumbnail, has_thumbnail,
     ban_user, unban_user, is_user_banned, get_total_users, get_banned_users_count, get_stats,
+    get_all_user_ids,
     format_log_message, log_new_user, log_user_banned, log_user_unbanned,
     log_thumbnail_set, log_thumbnail_removed,
     add_user_channel, remove_user_channel, get_user_channels, get_user_by_channel
@@ -1205,7 +1206,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or "Unknown"
     first_name = update.effective_user.first_name or "User"
-    
+
+    registration = register_user(
+        user_id=user_id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name,
+    )
+
     if is_user_banned(user_id):
         return await update.message.reply_text(
             "🚫 <b>ᴀᴄᴄᴇss ᴅᴇɴɪᴇᴅ</b>\n\n"
@@ -1214,9 +1222,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
     
-    # Log new user
-    user_check = get_thumbnail(user_id)
-    if user_check is None:
+    # Log only the first successful MongoDB registration.
+    if registration["is_new"]:
         log_data = log_new_user(user_id, username, first_name)
         log_msg = format_log_message(user_id, username, log_data["action"], log_data.get("details", ""))
         await send_log(context, log_msg)
@@ -2113,12 +2120,8 @@ async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text(confirm_text, parse_mode="HTML")
     
     try:
-        # Get all user IDs from database
-        from database import db
-        users_collection = db.get_collection("users")
-        all_users = users_collection.find({}, {"user_id": 1})
-        
-        user_ids = [user["user_id"] for user in all_users if "user_id" in user]
+        # Get every unique user registered through /start.
+        user_ids = get_all_user_ids()
         
         if not user_ids:
             await msg.edit_text(

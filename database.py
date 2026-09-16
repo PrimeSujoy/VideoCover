@@ -34,6 +34,48 @@ except Exception as e:
     users_collection = None
 
 
+def register_user(
+    user_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+) -> dict:
+    """Upsert a bot user without overwriting their existing bot data."""
+    if not DB_AVAILABLE:
+        logger.debug(f"Database not available, cannot register user {user_id}")
+        return {"success": False, "is_new": False}
+
+    try:
+        now = datetime.now()
+        result = users_collection.update_one(
+            {"user_id": user_id},
+            {
+                "$setOnInsert": {
+                    "user_id": user_id,
+                    "is_banned": False,
+                    "joined_at": now,
+                },
+                "$set": {
+                    "username": username,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "last_active": now,
+                },
+            },
+            upsert=True,
+        )
+        is_new = result.upserted_id is not None
+        logger.info(
+            "%s user %s",
+            "Registered new" if is_new else "Updated existing",
+            user_id,
+        )
+        return {"success": True, "is_new": is_new}
+    except Exception as e:
+        logger.error(f"❌ Error registering user {user_id}: {e}")
+        return {"success": False, "is_new": False}
+
+
 def save_thumbnail(user_id: int, photo_id: str) -> bool:
     """Save or update user's thumbnail to MongoDB"""
     if not DB_AVAILABLE:
@@ -190,7 +232,7 @@ def get_total_users() -> int:
         return 0
     
     try:
-        count = users_collection.count_documents({})
+        count = len(users_collection.distinct("user_id", {"user_id": {"$exists": True}}))
         logger.info(f"📊 Total users: {count}")
         return count
     except Exception as e:
@@ -222,9 +264,12 @@ def get_stats() -> dict:
         }
     
     try:
-        total = users_collection.count_documents({})
+        total = len(users_collection.distinct("user_id", {"user_id": {"$exists": True}}))
         banned = users_collection.count_documents({"is_banned": True})
-        with_thumb = users_collection.count_documents({"photo_id": {"$exists": True}})
+        with_thumb = users_collection.count_documents({
+            "user_id": {"$exists": True},
+            "photo_id": {"$exists": True}
+        })
         
         stats = {
             "total_users": total,
@@ -240,6 +285,30 @@ def get_stats() -> dict:
             "banned_users": 0,
             "users_with_thumbnail": 0
         }
+
+
+def get_all_user_ids() -> list[int]:
+    """Return unique registered Telegram user IDs for broadcasts."""
+    if not DB_AVAILABLE:
+        return []
+
+    try:
+        raw_user_ids = users_collection.distinct(
+            "user_id", {"user_id": {"$exists": True}}
+        )
+        user_ids = []
+        for user_id in raw_user_ids:
+            try:
+                normalized_id = int(user_id)
+            except (TypeError, ValueError):
+                logger.warning(f"Skipping invalid stored user ID: {user_id!r}")
+                continue
+            if normalized_id not in user_ids:
+                user_ids.append(normalized_id)
+        return user_ids
+    except Exception as e:
+        logger.error(f"❌ Error getting broadcast recipients: {e}")
+        return []
 
 
 """═══════════════════ LOGGING FUNCTIONS ═══════════════════"""

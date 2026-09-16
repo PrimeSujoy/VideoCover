@@ -2177,7 +2177,20 @@ async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML",
             )
             await asyncio.to_thread(test.upload)
+
+            share_url = None
+            try:
+                await progress.edit_text(
+                    "🚀 <b>Speed Test Complete</b>\n\n"
+                    "🖼️ Generating the result image...",
+                    parse_mode="HTML",
+                )
+                share_url = await asyncio.to_thread(test.results.share)
+            except Exception as share_error:
+                logger.warning(f"Could not generate speed test image: {share_error}")
+
             result = test.results.dict()
+            share_url = share_url or result.get("share")
 
             server = result.get("server") or {}
             client = result.get("client") or {}
@@ -2213,7 +2226,20 @@ async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"├ <b>ISP Rating:</b> <code>{_safe_speedtest_value(client.get('isprating'))}</code>\n"
                 "╰ <b>Powered by Nexon Bots</b>"
             )
-            await progress.edit_text(text, parse_mode="HTML")
+
+            if share_url:
+                try:
+                    await update.message.reply_photo(
+                        photo=share_url,
+                        caption=text,
+                        parse_mode="HTML",
+                    )
+                    await progress.delete()
+                except Exception as photo_error:
+                    logger.warning(f"Could not send speed test image: {photo_error}")
+                    await progress.edit_text(text, parse_mode="HTML")
+            else:
+                await progress.edit_text(text, parse_mode="HTML")
         except ImportError:
             await progress.edit_text(
                 "❌ <b>Speed test dependency is missing.</b>\n\n"

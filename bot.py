@@ -736,20 +736,17 @@ async def _show_force_sub_prompt(
 
 
 async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Automatically verify that the user joined every configured channel."""
+    """Live-check that the user is still joined to every configured channel."""
     user_id = update.effective_user.id
 
     if is_admin(user_id) or not FORCE_SUB_CHANNEL_IDS:
         return True
 
-    now = time.time()
-    if _force_sub_cache.get(user_id, 0) > now:
-        return True
-
+    # Do not cache successful membership. A user who leaves a required channel
+    # must lose access on their very next command.
     missing_channels = await _get_missing_force_sub_channels(context, user_id)
     if not missing_channels:
         verified_users.add(user_id)
-        _force_sub_cache[user_id] = now + 300
         logger.info(
             "User %s automatically verified in all %s force-sub channels",
             user_id,
@@ -758,7 +755,6 @@ async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return True
 
     verified_users.discard(user_id)
-    _force_sub_cache.pop(user_id, None)
     logger.info(
         "User %s is missing %s of %s force-sub channels",
         user_id,

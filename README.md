@@ -144,7 +144,7 @@ python bot.py
 # 🔓 Edit config.env
 
 BOT_TOKEN=your_token_from_botfather
-OWNER_ID=your_telegram_user_id
+OWNER_ID=123456789 987654321
 FORCE_SUB_CHANNEL_ID=-1002659719637
 # Optional: receives first-time verified user registrations only
 LOG_CHANNEL_ID=-1002659719637
@@ -220,6 +220,7 @@ python bot.py
 | `/stats` | 📊 User statistics |
 | `/status` | ⏱️ System status |
 | `/speedtest` | 🚀 Server download/upload speed test |
+| `/restart` | 🔄 Restart the bot process |
 | `/broadcast message` | 📢 Send to all users |
 
 </div>
@@ -241,7 +242,7 @@ other platforms that can run a Dockerfile or `python bot.py`.
 | Variable | Required | Description |
 |---|---:|---|
 | `BOT_TOKEN` | Yes | Token from [@BotFather](https://t.me/BotFather) |
-| `OWNER_ID` | Yes | Owner's numeric Telegram user ID |
+| `OWNER_ID` | Yes | One or more numeric owner IDs separated by spaces |
 | `MONGODB_URI` | Yes | Externally reachable MongoDB connection string |
 | `MONGODB_DATABASE` | No | Database name; defaults to `video_cover_bot` |
 | `OWNER_USERNAME` | No | Owner username without `@` |

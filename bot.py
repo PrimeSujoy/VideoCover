@@ -22,7 +22,6 @@ from telegram.ext import (
 )
 from config import config
 import sys
-from updater import update_from_upstream
 from telegram.error import BadRequest, RetryAfter
 import random
 from health_server import start_health_server
@@ -191,7 +190,32 @@ if not TOKEN:
 # Auto-detect bot username from token
 BOT_USERNAME = None
 
-OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
+def parse_owner_ids() -> tuple[int, ...]:
+    """Parse space-separated owner IDs from OWNER_ID and OWNER_IDS."""
+    raw_owner_ids = " ".join(
+        value
+        for value in (
+            os.environ.get("OWNER_ID", ""),
+            os.environ.get("OWNER_IDS", ""),
+        )
+        if value
+    )
+    parsed_owner_ids = []
+    for raw_id in raw_owner_ids.replace(",", " ").split():
+        try:
+            owner_id = int(raw_id)
+        except ValueError:
+            logger.warning("Ignoring an invalid owner ID in configuration")
+            continue
+        if owner_id > 0 and owner_id not in parsed_owner_ids:
+            parsed_owner_ids.append(owner_id)
+    return tuple(parsed_owner_ids)
+
+
+OWNER_ID_LIST = parse_owner_ids()
+OWNER_IDS = frozenset(OWNER_ID_LIST)
+# Primary owner is retained for links and other single-owner fallbacks.
+OWNER_ID = OWNER_ID_LIST[0] if OWNER_ID_LIST else 0
 FORCE_SUB_CHANNEL_ID = os.environ.get("FORCE_SUB_CHANNEL_ID")
 FORCE_SUB_BANNER_URL = os.environ.get("FORCE_SUB_BANNER_URL")
 HOME_MENU_BANNER_URL = os.environ.get("HOME_MENU_BANNER_URL")
@@ -346,9 +370,7 @@ async def get_invite_link(bot, chat_id):
 
 def is_admin(user_id: int) -> bool:
     """Check if user is bot owner or admin"""
-    admin_list = [OWNER_ID]
-    # Add more admins here if needed from env
-    return user_id in admin_list
+    return user_id in OWNER_IDS
 
 
 async def check_admin(update: Update) -> bool:
@@ -381,7 +403,7 @@ async def check_force_sub(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
 
     # Owner bypass
-    if user_id == OWNER_ID:
+    if is_admin(user_id):
         return True
 
     # If no force-sub configured, allow access
@@ -1846,53 +1868,25 @@ async def video_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    """Restart the running bot process without modifying repository files."""
+    if not await check_admin(update):
+        return
 
-    if user_id != OWNER_ID:
-        return await update.message.reply_text("❌ You are not authorized.")
-
-    msg = await update.message.reply_text("🔄 Checking for updates from upstream...")
-
+    msg = await update.message.reply_text(
+        "🔄 <b>Restarting bot...</b>\n\n"
+        "Please wait a few seconds.",
+        parse_mode="HTML",
+    )
     try:
-        success = update_from_upstream()
-
-        if not success:
-            await msg.edit_text(
-                "❌ <b>ᴜᴘᴅᴀᴛᴇ ꜰᴀɪʟᴇᴅ</b>\n\n"
-                "ᴄᴏᴜʟᴅ ɴᴏᴛ ꜰᴇᴛᴄʜ ᴜᴘᴅᴀᴛᴇs ꜰʀᴏᴍ ᴜᴘsᴛʀᴇᴀᴍ.\n"
-                "ᴘʟᴇᴀsᴇ ᴄʜᴇᴄᴋ:\n"
-                "• ᴜᴘsᴛʀᴇᴀᴍ_ʀᴇᴘᴏ ɪs ᴄᴏʀʀᴇᴄᴛ\n"
-                "• ᴜᴘsᴛʀᴇᴀᴍ_ʙʀᴀɴᴄʜ ɪs ᴄᴏʀʀᴇᴄᴛ\n"
-                "• ɪɴᴛᴇʀɴᴇᴛ ᴄᴏɴɴᴇᴄᴛɪᴏɴ ɪs ᴀᴄᴛɪᴠᴇ\n\n"
-                "ᴄʜᴇᴄᴋ ʟᴏɢs ꜰᴏʀ ᴅᴇᴛᴀɪʟs.",
-                parse_mode="HTML"
-            )
-            logger.error(f"Update failed - bot not restarting")
-            return
-
-        # Update successful - now restart
-        await msg.edit_text(
-            "✅ <b>ᴜᴘᴅᴀᴛᴇ sᴜᴄᴄᴇssꜰᴜʟ!</b>\n\n"
-            "🔄 ʀᴇsᴛᴀʀᴛɪɴɢ ʙᴏᴛ ᴡɪᴛʜ ɴᴇᴡ ᴄʜᴀɴɢᴇs...\n"
-            "<i>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</i>",
-            parse_mode="HTML"
-        )
-        
-        logger.info("✅ Update completed successfully. Restarting bot...")
-        # Give time for message to be sent
+        logger.info("Owner requested a bot process restart")
         await asyncio.sleep(1)
-        
-        # Restart the bot
         os.execv(sys.executable, [sys.executable] + sys.argv)
-        
     except Exception as e:
-        logger.error(f"❌ ᴇʀʀᴏʀ ᴅᴜʀɪɴɢ ʀᴇsᴛᴀʀᴛ/ᴜᴘᴅᴀᴛᴇ: {e}")
+        logger.error(f"Bot restart failed: {e}", exc_info=True)
         await msg.edit_text(
-            f"❌ <b>ᴇʀʀᴏʀ ᴅᴜʀɪɴɢ ᴜᴘᴅᴀᴛᴇ</b>\n\n"
-            f"ᴀɴ ᴜɴᴇxᴘᴇᴄᴛᴇᴅ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ:\n"
-            f"<code>{str(e)[:100]}</code>\n\n"
-            f"ᴄʜᴇᴄᴋ ʟᴏɢs ꜰᴏʀ ꜰᴜʟʟ ᴅᴇᴛᴀɪʟs.",
-            parse_mode="HTML"
+            "❌ <b>Restart failed.</b>\n\n"
+            "Check the deployment logs for details.",
+            parse_mode="HTML",
         )
 
 
@@ -2428,6 +2422,7 @@ def main() -> None:
             BotCommand("stats", "📊 Bot statistics"),
             BotCommand("status", "⏱️ Bot status"),
             BotCommand("speedtest", "🚀 Server speed test"),
+            BotCommand("restart", "🔄 Restart bot"),
             BotCommand("broadcast", "📢 Broadcast message"),
         ]
         

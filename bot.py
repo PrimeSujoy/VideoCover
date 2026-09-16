@@ -7,6 +7,8 @@ import logging
 import asyncio
 import time
 from html import escape
+from io import BytesIO
+from urllib.request import Request, urlopen
 from collections import defaultdict
 from telegram import InputMediaVideo, Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.constants import ChatMemberStatus
@@ -2141,6 +2143,26 @@ def _safe_speedtest_value(value, fallback: str = "Unknown") -> str:
     return escape(str(value))
 
 
+def _download_speedtest_image(image_url: str) -> BytesIO:
+    """Download the shared result image before uploading it to Telegram."""
+    request = Request(
+        image_url,
+        headers={"User-Agent": "Mozilla/5.0 VideoCoverBot/1.0"},
+    )
+    with urlopen(request, timeout=30) as response:
+        image_data = response.read(10 * 1024 * 1024 + 1)
+
+    if not image_data:
+        raise ValueError("Speed test image response was empty")
+    if len(image_data) > 10 * 1024 * 1024:
+        raise ValueError("Speed test image exceeded 10 MB")
+
+    image = BytesIO(image_data)
+    image.name = "speedtest.png"
+    image.seek(0)
+    return image
+
+
 async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Run an owner-only Ookla-compatible server speed test."""
     if not await check_admin(update):
@@ -2229,10 +2251,17 @@ async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if share_url:
                 try:
+                    speedtest_image = await asyncio.to_thread(
+                        _download_speedtest_image,
+                        share_url,
+                    )
                     await update.message.reply_photo(
-                        photo=share_url,
+                        photo=InputFile(speedtest_image, filename="speedtest.png"),
                         caption=text,
                         parse_mode="HTML",
+                        read_timeout=60,
+                        write_timeout=60,
+                        connect_timeout=30,
                     )
                     await progress.delete()
                 except Exception as photo_error:

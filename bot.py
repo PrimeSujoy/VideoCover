@@ -32,7 +32,6 @@ from database import (
     format_log_message, log_new_user,
     add_user_channel, remove_user_channel, get_user_channels, get_user_by_channel
 )
-from telegram import MessageEntity
 
 
 """═══════════════════ RATE LIMITER (30 MSG/SEC + SEQUENTIAL) ═══════════════════"""
@@ -164,12 +163,6 @@ async def safe_send_photo(context, chat_id, photo, caption, reply_markup=None, p
         reply_markup=reply_markup,
         parse_mode=parse_mode
     )
-
-def bold_entities(text: str):
-    """Return entities list to make full caption bold"""
-    if not text:
-        return None
-    return [MessageEntity(type="bold", offset=0, length=len(text))]
 
 # Logging
 logging.basicConfig(
@@ -2021,18 +2014,32 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action_text = "ᴜᴘᴅᴀᴛᴇᴅ" if is_replace else "sᴀᴠᴇᴅ"
     await update.message.reply_text("✅ ᴛʜᴜᴍʙɴᴀɪʟ " + action_text + "\n\nʀᴇᴀᴅʏ! sᴇɴᴅ ᴀɴʏ ᴠɪᴅᴇᴏ ᴛᴏ ᴀᴘᴘʟʏ ᴄᴏᴠᴇʀ", reply_to_message_id=update.message.message_id, parse_mode="HTML")
 
-async def _process_video(update: Update, context: ContextTypes.DEFAULT_TYPE, msg):
-    """Process video and send back with cover (used by video_dm_queue)"""
+async def _process_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send the covered video directly while preserving original metadata."""
     user_id = update.message.from_user.id
     cover = get_thumbnail(user_id)
-    video = update.message.video.file_id
-    original_caption = update.message.caption or ""
-    caption_entities = bold_entities(original_caption)
-    
-    media = InputMediaVideo(media=video, caption=original_caption, caption_entities=caption_entities, supports_streaming=True, cover=cover)
-    
-    await context.bot.edit_message_media(chat_id=update.effective_chat.id, message_id=msg.message_id, media=media)
-    
+    video = update.message.video
+
+    await update.message.reply_video(
+        video=video.file_id,
+        cover=cover,
+        caption=update.message.caption,
+        caption_entities=update.message.caption_entities or None,
+        duration=video.duration,
+        width=video.width,
+        height=video.height,
+        supports_streaming=True,
+        has_spoiler=bool(getattr(update.message, "has_media_spoiler", False)),
+        show_caption_above_media=getattr(
+            update.message,
+            "show_caption_above_media",
+            None,
+        ),
+        protect_content=bool(
+            getattr(update.message, "has_protected_content", False)
+        ),
+    )
+
     logger.debug(f"✅ Video processed for user {user_id}")
 
 
@@ -2045,11 +2052,8 @@ async def video_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not cover:
         return await update.message.reply_text("❌ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ ꜰᴏᴜɴᴅ\n\nꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ꜰɪʀsᴛ ᴛᴏ sᴀᴠᴇ ᴛʜᴜᴍʙɴᴀɪʟ", reply_to_message_id=update.message.message_id, parse_mode="HTML")
     
-    # Send processing message
-    msg = await update.message.reply_text("⏳ ᴘʀᴏᴄᴇssɪɴɢ ᴠɪᴅᴇᴏ\n\nᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...", reply_to_message_id=update.message.message_id, parse_mode="HTML")
-    
-    # Add to user's sequential queue - videos come in order
-    await video_dm_queue.add(user_id, _process_video, update, context, msg)
+    # Add silently to the user's sequential queue; output is the covered video.
+    await video_dm_queue.add(user_id, _process_video, update, context)
 
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):

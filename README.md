@@ -219,6 +219,7 @@ python bot.py
 | `/unban userid` | ✅ Unban user |
 | `/stats` | 📊 User statistics |
 | `/status` | ⏱️ System status |
+| `/speedtest` | 🚀 Server download/upload speed test |
 | `/broadcast message` | 📢 Send to all users |
 
 </div>

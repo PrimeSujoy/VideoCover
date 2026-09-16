@@ -6,6 +6,7 @@ import os
 import logging
 import asyncio
 import time
+from html import escape
 from collections import defaultdict
 from telegram import InputMediaVideo, Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.constants import ChatMemberStatus
@@ -177,6 +178,7 @@ logger = logging.getLogger(__name__)
 # Avoid exposing the Telegram bot token in HTTP request URLs written by httpx.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 BOT_STARTED_AT = time.time()
+speedtest_lock = asyncio.Lock()
 
 # Token from config or environment
 TOKEN = getattr(config, "BOT_TOKEN", None) or os.environ.get("BOT_TOKEN")
@@ -2112,6 +2114,121 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_message.edit_text("❌ Failed to collect system statistics.")
 
 
+def _format_speed(bits_per_second: float) -> str:
+    """Convert speedtest bits/second to a readable bytes/second value."""
+    size = float(bits_per_second or 0) / 8
+    for unit in ("B/s", "KB/s", "MB/s", "GB/s", "TB/s"):
+        if size < 1024 or unit == "TB/s":
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return "0 B/s"
+
+
+def _format_transfer_size(size_bytes: int) -> str:
+    """Format transferred bytes using binary units."""
+    size = float(size_bytes or 0)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024 or unit == "TB":
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return "0 B"
+
+
+def _safe_speedtest_value(value, fallback: str = "Unknown") -> str:
+    """Escape external speedtest metadata before using Telegram HTML."""
+    if value is None or value == "":
+        return fallback
+    return escape(str(value))
+
+
+async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run an owner-only Ookla-compatible server speed test."""
+    if not await check_admin(update):
+        return
+
+    if speedtest_lock.locked():
+        return await update.message.reply_text(
+            "⚠️ A speed test is already running. Please wait for it to finish."
+        )
+
+    progress = await update.message.reply_text(
+        "🚀 <b>Speed Test Started</b>\n\n"
+        "🔎 Selecting the best server...",
+        parse_mode="HTML",
+    )
+
+    async with speedtest_lock:
+        try:
+            from speedtest import Speedtest
+
+            test = await asyncio.to_thread(Speedtest, secure=True)
+            await asyncio.to_thread(test.get_best_server)
+
+            await progress.edit_text(
+                "🚀 <b>Speed Test Running</b>\n\n"
+                "⬇️ Measuring download speed...",
+                parse_mode="HTML",
+            )
+            await asyncio.to_thread(test.download)
+
+            await progress.edit_text(
+                "🚀 <b>Speed Test Running</b>\n\n"
+                "⬆️ Measuring upload speed...",
+                parse_mode="HTML",
+            )
+            await asyncio.to_thread(test.upload)
+            result = test.results.dict()
+
+            server = result.get("server") or {}
+            client = result.get("client") or {}
+            server_country = ", ".join(
+                item for item in (
+                    _safe_speedtest_value(server.get("country"), ""),
+                    _safe_speedtest_value(server.get("cc"), ""),
+                )
+                if item
+            ) or "Unknown"
+
+            text = (
+                "╭─《 🚀 <b>SPEEDTEST INFO</b> 》\n"
+                f"├ <b>Upload:</b> <code>{_format_speed(result.get('upload', 0))}</code>\n"
+                f"├ <b>Download:</b> <code>{_format_speed(result.get('download', 0))}</code>\n"
+                f"├ <b>Ping:</b> <code>{float(result.get('ping') or 0):.3f} ms</code>\n"
+                f"├ <b>Time:</b> <code>{_safe_speedtest_value(result.get('timestamp'))}</code>\n"
+                f"├ <b>Data Sent:</b> <code>{_format_transfer_size(result.get('bytes_sent', 0))}</code>\n"
+                f"╰ <b>Data Received:</b> <code>{_format_transfer_size(result.get('bytes_received', 0))}</code>\n\n"
+                "╭─《 🌐 <b>SPEEDTEST SERVER</b> 》\n"
+                f"├ <b>Name:</b> <code>{_safe_speedtest_value(server.get('name'))}</code>\n"
+                f"├ <b>Country:</b> <code>{server_country}</code>\n"
+                f"├ <b>Sponsor:</b> <code>{_safe_speedtest_value(server.get('sponsor'))}</code>\n"
+                f"├ <b>Latency:</b> <code>{_safe_speedtest_value(server.get('latency'))} ms</code>\n"
+                f"├ <b>Latitude:</b> <code>{_safe_speedtest_value(server.get('lat'))}</code>\n"
+                f"╰ <b>Longitude:</b> <code>{_safe_speedtest_value(server.get('lon'))}</code>\n\n"
+                "╭─《 👤 <b>CLIENT DETAILS</b> 》\n"
+                f"├ <b>IP Address:</b> <code>{_safe_speedtest_value(client.get('ip'))}</code>\n"
+                f"├ <b>Latitude:</b> <code>{_safe_speedtest_value(client.get('lat'))}</code>\n"
+                f"├ <b>Longitude:</b> <code>{_safe_speedtest_value(client.get('lon'))}</code>\n"
+                f"├ <b>Country:</b> <code>{_safe_speedtest_value(client.get('country'))}</code>\n"
+                f"├ <b>ISP:</b> <code>{_safe_speedtest_value(client.get('isp'))}</code>\n"
+                f"├ <b>ISP Rating:</b> <code>{_safe_speedtest_value(client.get('isprating'))}</code>\n"
+                "╰ <b>Powered by Nexon Bots</b>"
+            )
+            await progress.edit_text(text, parse_mode="HTML")
+        except ImportError:
+            await progress.edit_text(
+                "❌ <b>Speed test dependency is missing.</b>\n\n"
+                "Install <code>speedtest-cli</code> and restart the bot.",
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.error(f"Speed test failed: {e}", exc_info=True)
+            await progress.edit_text(
+                "❌ <b>Speed test failed.</b>\n\n"
+                "The test server may be unavailable. Please try again later.",
+                parse_mode="HTML",
+            )
+
+
 async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Broadcast message to all users - usage: /broadcast <message>"""
     if not await check_admin(update):
@@ -2255,6 +2372,7 @@ def main() -> None:
             BotCommand("unban", "✅ Unban user"),
             BotCommand("stats", "📊 Bot statistics"),
             BotCommand("status", "⏱️ Bot status"),
+            BotCommand("speedtest", "🚀 Server speed test"),
             BotCommand("broadcast", "📢 Broadcast message"),
         ]
         
@@ -2281,6 +2399,7 @@ def main() -> None:
     app.add_handler(CommandHandler("unban", unban_cmd, filters=filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("stats", stats_cmd, filters=filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("status", status_cmd, filters=filters.ChatType.PRIVATE))
+    app.add_handler(CommandHandler("speedtest", speedtest_cmd, filters=filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("broadcast", broadcast_cmd, filters=filters.ChatType.PRIVATE))
     
     # Channel setup commands

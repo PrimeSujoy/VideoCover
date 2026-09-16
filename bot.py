@@ -27,8 +27,7 @@ from database import (
     register_user, save_thumbnail, get_thumbnail, delete_thumbnail, has_thumbnail,
     ban_user, unban_user, is_user_banned, get_total_users, get_banned_users_count, get_stats,
     get_all_user_ids,
-    format_log_message, log_new_user, log_user_banned, log_user_unbanned,
-    log_thumbnail_set, log_thumbnail_removed,
+    format_log_message, log_new_user,
     add_user_channel, remove_user_channel, get_user_channels, get_user_by_channel
 )
 from telegram import MessageEntity
@@ -230,7 +229,7 @@ _force_sub_cache = {}
 
 """═════════════════ LOGGING HELPER ═════════════════"""
 async def send_log(context: ContextTypes.DEFAULT_TYPE, log_message: str) -> bool:
-    """Send log message to log channel through rate limiter"""
+    """Send a new-user registration log when a log channel is configured."""
     if not LOG_CHANNEL_ID:
         logger.debug("LOG_CHANNEL_ID not configured")
         return False
@@ -247,6 +246,31 @@ async def send_log(context: ContextTypes.DEFAULT_TYPE, log_message: str) -> bool
     except Exception as e:
         logger.error(f"❌ Error queuing log: {e}")
         return False
+
+
+async def register_verified_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
+    """Register a verified user and log only their first registration."""
+    user = update.effective_user
+    registration = register_user(
+        user_id=user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+    )
+
+    if registration["is_new"]:
+        username = user.username or "Unknown"
+        first_name = user.first_name or "User"
+        log_data = log_new_user(user.id, username, first_name)
+        log_msg = format_log_message(
+            user.id,
+            username,
+            log_data["action"],
+            log_data.get("details", ""),
+        )
+        await send_log(context, log_msg)
+
+    return registration
 
 
 """--------------------HELPER FUNCTIONS--------------------"""
@@ -564,6 +588,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not FORCE_SUB_CHANNEL_ID:
             logger.warning("⚠️ FORCE_SUB_CHANNEL_ID not configured")
             await query.answer("✅ Bot configured successfully!", show_alert=False)
+            await register_verified_user(update, context)
             await open_home(update, context)
             return
         
@@ -605,6 +630,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ):
                 verified_users.add(user_id)
                 logger.info(f"✅ User {user_id} verified successfully with status {member.status}")
+
+                # Register only after force-sub membership is successfully verified.
+                await register_verified_user(update, context)
                 
                 # Show success alert
                 await query.answer("✅ ᴄʜᴀɴɴᴇʟ ᴠᴇʀɪꜰɪᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ!", show_alert=False)
@@ -1204,15 +1232,7 @@ async def open_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    username = update.effective_user.username or "Unknown"
     first_name = update.effective_user.first_name or "User"
-
-    registration = register_user(
-        user_id=user_id,
-        username=update.effective_user.username,
-        first_name=update.effective_user.first_name,
-        last_name=update.effective_user.last_name,
-    )
 
     if is_user_banned(user_id):
         return await update.message.reply_text(
@@ -1221,15 +1241,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Contact @support for help.",
             parse_mode="HTML"
         )
-    
-    # Log only the first successful MongoDB registration.
-    if registration["is_new"]:
-        log_data = log_new_user(user_id, username, first_name)
-        log_msg = format_log_message(user_id, username, log_data["action"], log_data.get("details", ""))
-        await send_log(context, log_msg)
-    
+
     if not await check_force_sub(update, context):
         return
+
+    # With force-sub enabled, this point is reached only after verification.
+    await register_verified_user(update, context)
     
     bot_username = get_bot_username()
     
@@ -1377,14 +1394,8 @@ async def remover(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_sub(update, context):
         return
     user_id = update.message.from_user.id
-    username = update.message.from_user.username or "Unknown"
     
     if delete_thumbnail(user_id):
-        # Log thumbnail removal
-        log_data = log_thumbnail_removed(user_id, username)
-        log_msg = format_log_message(user_id, username, log_data["action"])
-        await send_log(context, log_msg)
-        
         return await update.message.reply_text("✅ ᴛʜᴜᴍʙɴᴀɪʟ ʀᴇᴍᴏᴠᴇᴅ\n\nᴅᴇʟᴇᴛᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ. ᴜᴘʟᴏᴀᴅ ᴀ ɴᴇᴡ ᴏɴᴇ ᴀɴʏᴛɪᴍᴇ!", reply_to_message_id=update.message.message_id, parse_mode="HTML")
     await update.message.reply_text("⚠️ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ ᴛᴏ ʀᴇᴍᴏᴠᴇ\n\nꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ꜰɪʀsᴛ!", reply_to_message_id=update.message.message_id, parse_mode="HTML")
 
@@ -1787,7 +1798,6 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_sub(update, context):
         return
     user_id = update.message.from_user.id
-    username = update.message.from_user.username or "Unknown"
     photo_id = update.message.photo[-1].file_id
     
     # Check if replacing
@@ -1797,18 +1807,12 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_thumbnail(user_id, photo_id)
     logger.info(f"✅ Thumbnail saved to MongoDB for user {user_id}")
     
-    # Log thumbnail action
-    log_data = log_thumbnail_set(user_id, username, is_replace=is_replace)
-    log_msg = format_log_message(user_id, username, log_data["action"])
-    await send_log(context, log_msg)
-    
     action_text = "ᴜᴘᴅᴀᴛᴇᴅ" if is_replace else "sᴀᴠᴇᴅ"
     await update.message.reply_text("✅ ᴛʜᴜᴍʙɴᴀɪʟ " + action_text + "\n\nʀᴇᴀᴅʏ! sᴇɴᴅ ᴀɴʏ ᴠɪᴅᴇᴏ ᴛᴏ ᴀᴘᴘʟʏ ᴄᴏᴠᴇʀ", reply_to_message_id=update.message.message_id, parse_mode="HTML")
 
 async def _process_video(update: Update, context: ContextTypes.DEFAULT_TYPE, msg):
     """Process video and send back with cover (used by video_dm_queue)"""
     user_id = update.message.from_user.id
-    username = update.message.from_user.username or "No Username"
     cover = get_thumbnail(user_id)
     video = update.message.video.file_id
     original_caption = update.message.caption or ""
@@ -1818,21 +1822,6 @@ async def _process_video(update: Update, context: ContextTypes.DEFAULT_TYPE, msg
     
     await context.bot.edit_message_media(chat_id=update.effective_chat.id, message_id=msg.message_id, media=media)
     
-    # Log to channel through rate limiter (TEXT ONLY - no video re-upload)
-    if LOG_CHANNEL_ID:
-        log_caption = (
-            f"🎥 <b>Video Processed</b>\n\n"
-            f"👤 User: <code>{user_id}</code>\n"
-            f"📌 Username: @{username}\n"
-            f"📝 Caption: {original_caption or 'No caption'}\n"
-            f"⏰ Time: {update.message.date}"
-        )
-        await rate_limiter.add(
-            context.bot.send_message,
-            chat_id=LOG_CHANNEL_ID,
-            text=log_caption,
-            parse_mode="HTML"
-        )
     logger.debug(f"✅ Video processed for user {user_id}")
 
 
@@ -1980,11 +1969,6 @@ async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📌 ʀᴇᴀsᴏɴ: {reason}",
                 parse_mode="HTML"
             )
-            
-            # Log ban action
-            log_data = log_user_banned(user_id, "User", reason)
-            log_msg = format_log_message(user_id, "User", log_data["action"], log_data.get("details", ""))
-            await send_log(context, log_msg)
         else:
             await update.message.reply_text("❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ʙᴀɴ ᴜsᴇʀ")
     except ValueError:
@@ -2009,11 +1993,6 @@ async def unban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = int(args[1])
         if unban_user(user_id):
             await update.message.reply_text("✅ ᴜsᴇʀ " + str(user_id) + " ᴜɴʙᴀɴɴᴇᴅ")
-            
-            # Log unban action
-            log_data = log_user_unbanned(user_id, "User")
-            log_msg = format_log_message(user_id, "User", log_data["action"])
-            await send_log(context, log_msg)
         else:
             await update.message.reply_text("❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ᴜɴʙᴀɴ ᴜsᴇʀ")
     except ValueError:
@@ -2158,17 +2137,6 @@ async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         await msg.edit_text(result_text, parse_mode="HTML")
-        
-        # Log broadcast
-        if LOG_CHANNEL_ID:
-            log_text = (
-                f"📢 <b>Broadcast Sent</b>\n\n"
-                f"👤 Admin: @{update.message.from_user.username or update.message.from_user.id}\n"
-                f"📤 Messages Sent: {sent}\n"
-                f"❌ Failed: {failed}\n"
-                f"📝 Message:\n{message_text}"
-            )
-            await send_log(context, log_text)
         
     except Exception as e:
         await msg.edit_text(

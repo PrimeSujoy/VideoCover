@@ -146,6 +146,7 @@ python bot.py
 BOT_TOKEN=your_token_from_botfather
 OWNER_ID=your_telegram_user_id
 FORCE_SUB_CHANNEL_ID=-1002659719637
+# Optional: receives first-time verified user registrations only
 LOG_CHANNEL_ID=-1002659719637
 MONGODB_URI=mongodb://localhost:27017
 MONGODB_DATABASE=video_cover_bot
@@ -244,7 +245,7 @@ other platforms that can run a Dockerfile or `python bot.py`.
 | `MONGODB_DATABASE` | No | Database name; defaults to `video_cover_bot` |
 | `OWNER_USERNAME` | No | Owner username without `@` |
 | `FORCE_SUB_CHANNEL_ID` | No | Force-subscribe channel ID |
-| `LOG_CHANNEL_ID` | No | Telegram log channel ID |
+| `LOG_CHANNEL_ID` | No | Optional channel for first-time verified user registration logs only |
 | `FORCE_SUB_BANNER_URL` | No | Public force-subscribe banner URL |
 | `HOME_MENU_BANNER_URL` | No | Public home-menu banner URL |
 | `PORT` | Platform | Health server port; cloud platforms usually inject it |

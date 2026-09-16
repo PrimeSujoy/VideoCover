@@ -349,40 +349,11 @@ def format_log_message(user_id: int, username: str, action: str, details: str = 
 
 
 def log_new_user(user_id: int, username: str, first_name: str) -> dict:
-    """Log new user startup"""
-    action = "🆕 New User Started Bot"
+    """Build the only Telegram log event: a newly registered user."""
+    action = "🆕 New User Registered"
     details = f"Name: {first_name}"
     logger.info(f"✅ {action} - {username} ({user_id})")
     return create_log_entry(user_id, username, action, details)
-
-
-def log_user_banned(user_id: int, username: str, reason: str) -> dict:
-    """Log user ban"""
-    action = "🚫 User Banned"
-    details = f"Reason: {reason}"
-    logger.info(f"✅ {action} - {username} ({user_id}): {reason}")
-    return create_log_entry(user_id, username, action, details)
-
-
-def log_user_unbanned(user_id: int, username: str) -> dict:
-    """Log user unban"""
-    action = "✅ User Unbanned"
-    logger.info(f"✅ {action} - {username} ({user_id})")
-    return create_log_entry(user_id, username, action)
-
-
-def log_thumbnail_set(user_id: int, username: str, is_replace: bool = False) -> dict:
-    """Log thumbnail set/replace"""
-    action = "🖼 Thumbnail Replaced" if is_replace else "🖼 Thumbnail Set"
-    logger.info(f"✅ {action} - {username} ({user_id})")
-    return create_log_entry(user_id, username, action)
-
-
-def log_thumbnail_removed(user_id: int, username: str) -> dict:
-    """Log thumbnail removal"""
-    action = "🗑️ Thumbnail Removed"
-    logger.info(f"✅ {action} - {username} ({user_id})")
-    return create_log_entry(user_id, username, action)
 
 
 """═══════════════════ CHANNEL FUNCTIONS (MULTI-CHANNEL) ═══════════════════"""

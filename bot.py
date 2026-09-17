@@ -521,10 +521,10 @@ async def _legacy_check_force_sub(update: Update, context: ContextTypes.DEFAULT_
 
         # Build keyboard
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ", url=invite_link)],
+            [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ", url=invite_link, style="primary")],
             [
-                InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ", callback_data="check_fsub"),
-                InlineKeyboardButton("✖️ ᴄʟᴏsᴇ", callback_data="close_banner")
+                InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ", callback_data="check_fsub", style="success"),
+                InlineKeyboardButton("✖️ ᴄʟᴏsᴇ", callback_data="close_banner", style="danger")
             ]
         ])
         
@@ -673,11 +673,12 @@ async def _show_force_sub_prompt(
                 InlineKeyboardButton(
                     f"📢 Join {channel_name}"[:60],
                     url=invite_link,
+                    style="primary",
                 )
             ])
 
     keyboard_rows.append([
-        InlineKeyboardButton("✖️ Close", callback_data="close_banner")
+        InlineKeyboardButton("✖️ Close", callback_data="close_banner", style="danger")
     ])
     keyboard = InlineKeyboardMarkup(keyboard_rows)
     prompt = (
@@ -785,16 +786,17 @@ def build_home_keyboard(bot_username: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(
             "➕ Add to Channel",
             url=f"https://t.me/{bot_username}?startchannel=true",
+            style="success",
         )],
         [
-            InlineKeyboardButton("🖼 Set Cover", callback_data="menu_settings"),
-            InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels"),
+            InlineKeyboardButton("🖼 Set Cover", callback_data="menu_settings", style="primary"),
+            InlineKeyboardButton("📢 My Channels", callback_data="menu_mychannels", style="success"),
         ],
         [
-            InlineKeyboardButton("❓ Help", callback_data="menu_help"),
-            InlineKeyboardButton("ℹ️ About", callback_data="menu_about"),
+            InlineKeyboardButton("❓ Help", callback_data="menu_help", style="primary"),
+            InlineKeyboardButton("ℹ️ About", callback_data="menu_about", style="success"),
         ],
-        [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer")],
+        [InlineKeyboardButton("👨‍💻 Developer", callback_data="menu_developer", style="primary")],
     ])
 
 
@@ -930,7 +932,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🖼 ᴡɪᴛʜ ᴛʜᴜᴍʙɴᴀɪʟ: {stats['users_with_thumbnail']}"
         )
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         try:
             msg = query.message
@@ -960,7 +962,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📈 ʙᴀɴ ʀᴀᴛᴇ: {(banned_users/total_users*100):.1f}%" if total_users > 0 else "📈 ʙᴀɴ ʀᴀᴛᴇ: 0%"
         )
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         try:
             msg = query.message
@@ -993,7 +995,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = "⏱️ <b>Bot Status</b>\n\n🟢 Status: <b>Online</b>"
         
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         try:
             msg = query.message
@@ -1012,7 +1014,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         text = "🚫 ʙᴀɴ ᴜsᴇʀ\n\nꜱᴇɴᴅ ᴜsᴇʀ ɪᴅ ᴛᴏ ʙᴀɴ ᴏʀ /ʙᴀɴ ᴜsᴇʀɪᴅ ʀᴇᴀsᴏɴ"
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         await context.bot.send_message(chat_id=user_id, text=text, reply_markup=back_kb, parse_mode="HTML")
         return
@@ -1024,7 +1026,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         text = "✅ ᴜɴʙᴀɴ ᴜsᴇʀ\n\nꜱᴇɴᴅ ᴜsᴇʀ ɪᴅ ᴛᴏ ᴜɴʙᴀɴ ᴏʀ /ᴜɴʙᴀɴ ᴜsᴇʀɪᴅ"
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         await context.bot.send_message(chat_id=user_id, text=text, reply_markup=back_kb, parse_mode="HTML")
         return
@@ -1036,7 +1038,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         text = "📢 ʙʀᴏᴀᴅᴄᴀsᴛ ᴍᴇssᴀɢᴇ\n\nꜱᴇɴᴅ ᴍᴇssᴀɢᴇ ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ ᴛᴏ ᴀʟʟ ᴜsᴇʀs"
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back", style="primary")]
         ])
         await context.bot.send_message(chat_id=user_id, text=text, reply_markup=back_kb, parse_mode="HTML")
         return
@@ -1055,12 +1057,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ <b>Unban</b> – Restore access"
         )
         admin_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 sᴛᴀᴛɪsᴛɪᴄs", callback_data="admin_stats"),
-             InlineKeyboardButton("⏱️ sᴛᴀᴛᴜs", callback_data="admin_status")],
-            [InlineKeyboardButton("🚫 ʙᴀɴ ᴜsᴇʀ", callback_data="admin_ban"),
-             InlineKeyboardButton("✅ ᴜɴʙᴀɴ ᴜsᴇʀ", callback_data="admin_unban")],
-            [InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast"),
-             InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back")],
+            [InlineKeyboardButton("📊 sᴛᴀᴛɪsᴛɪᴄs", callback_data="admin_stats", style="primary"),
+             InlineKeyboardButton("⏱️ sᴛᴀᴛᴜs", callback_data="admin_status", style="success")],
+            [InlineKeyboardButton("🚫 ʙᴀɴ ᴜsᴇʀ", callback_data="admin_ban", style="danger"),
+             InlineKeyboardButton("✅ ᴜɴʙᴀɴ ᴜsᴇʀ", callback_data="admin_unban", style="success")],
+            [InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast", style="primary"),
+             InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back", style="success")],
         ])
         try:
             msg = query.message
@@ -1171,8 +1173,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 # Add settings submenus buttons
                 settings_kb = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🖼 ᴛʜᴜᴍʙɴᴀɪʟs", callback_data="submenu_thumbnails")],
-                    [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back")]
+                    [InlineKeyboardButton("🖼 ᴛʜᴜᴍʙɴᴀɪʟs", callback_data="submenu_thumbnails", style="success")],
+                    [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back", style="primary")]
                 ])
                 try:
                     msg = query.message
@@ -1196,7 +1198,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "2. <code>/setchannel -100xxxxxxxxxx</code>"
                     )
                     ch_kb = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel")]
+                        [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel", style="success")]
                     ])
                 else:
                     text = f"📢 <b>Your Channels ({len(channels)})</b>\n\n"
@@ -1206,17 +1208,17 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             chat = await context.bot.get_chat(int(ch))
                             text += f"• <b>{chat.title}</b>\n  <code>{ch}</code>\n"
                             buttons.append([
-                                InlineKeyboardButton(f"{chat.title}", callback_data="noop"),
-                                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                                InlineKeyboardButton(f"{chat.title}", callback_data="noop", style="primary"),
+                                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
                             ])
                         except:
                             text += f"• <code>{ch}</code>\n"
                             buttons.append([
-                                InlineKeyboardButton(f"{ch}", callback_data="noop"),
-                                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                                InlineKeyboardButton(f"{ch}", callback_data="noop", style="primary"),
+                                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
                             ])
                     
-                    buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel")])
+                    buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel", style="success")])
                     ch_kb = InlineKeyboardMarkup(buttons)
                 
                 try:
@@ -1244,7 +1246,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Add back button to all menus (except settings which has its own)
             if key != "settings":
                 back_kb = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⬅️ Back", callback_data="menu_back")]
+                    [InlineKeyboardButton("⬅️ Back", callback_data="menu_back", style="primary")]
                 ])
                 
                 # Try to edit original message's caption/text first
@@ -1278,10 +1280,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "ʀᴇᴍᴏᴠᴇ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴛʜᴜᴍʙɴᴀɪʟ"
         )
         thumb_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💾 sᴀᴠᴇ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_save_info"),
-             InlineKeyboardButton("👁️ sʜᴏᴡ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_show")],
-            [InlineKeyboardButton("🗑️ ᴅᴇʟᴇᴛᴇ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_delete"),
-             InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_settings")]
+            [InlineKeyboardButton("💾 sᴀᴠᴇ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_save_info", style="success"),
+             InlineKeyboardButton("👁️ sʜᴏᴡ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_show", style="primary")],
+            [InlineKeyboardButton("🗑️ ᴅᴇʟᴇᴛᴇ ᴛʜᴜᴍʙɴᴀɪʟ", callback_data="thumb_delete", style="danger"),
+             InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_settings", style="primary")]
         ])
         try:
             msg = query.message
@@ -1316,7 +1318,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📸 ʀᴇᴀᴅʏ? sᴇɴᴅ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ɴᴏᴡ"
         )
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails", style="primary")]
         ])
         try:
             msg = query.message
@@ -1334,7 +1336,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if photo_id:
             text = "👁️ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴛʜᴜᴍʙɴᴀɪʟ\n\nᴛʜɪs ᴘʜᴏᴛᴏ ᴡɪʟʟ ʙᴇ ᴀᴘᴘʟɪᴇᴅ ᴛᴏ ʏᴏᴜʀ ᴠɪᴅᴇᴏs\nᴄʜᴀɴɢᴇ ɪᴛ ᴀɴʏᴛɪᴍᴇ ʙʏ ᴜᴘʟᴏᴀᴅɪɴɢ ᴀ ɴᴇᴡ ᴏɴᴇ"
             back_kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails")]
+                [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails", style="primary")]
             ])
             try:
                 await query.message.delete()
@@ -1353,7 +1355,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             text = "❌ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ sᴀᴠᴇᴅ ʏᴇᴛ\n\nꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴛᴏ ᴄʀᴇᴀᴛᴇ ᴏɴᴇ ɴᴏᴡ"
             back_kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails")]
+                [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails", style="primary")]
             ])
             try:
                 msg = query.message
@@ -1372,7 +1374,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             text = "⚠️ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ ꜰᴏᴜɴᴅ\n\nꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴛᴏ ᴄʀᴇᴀᴛᴇ ᴏɴᴇ"
         back_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="submenu_thumbnails", style="primary")]
         ])
         try:
             msg = query.message
@@ -1536,8 +1538,8 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🖼️ ᴠɪᴇᴡ ᴀɴᴅ ᴍᴀɴᴀɢᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟs"
     )
     settings_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🖼 ᴛʜᴜᴍʙɴᴀɪʟs", callback_data="submenu_thumbnails")],
-        [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back")]
+        [InlineKeyboardButton("🖼 ᴛʜᴜᴍʙɴᴀɪʟs", callback_data="submenu_thumbnails", style="success")],
+        [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back", style="primary")]
     ])
     banner = HOME_MENU_BANNER_URL
     if banner:
@@ -1589,7 +1591,7 @@ async def setchannel_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📌 <b>Only channel IDs are supported</b>"
         )
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{get_bot_username()}?startchannel=true")]
+            [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{get_bot_username()}?startchannel=true", style="success")]
         ])
         return await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
     
@@ -1681,11 +1683,11 @@ async def removechannel_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for ch in channels:
         try:
             chat = await context.bot.get_chat(int(ch))
-            buttons.append([InlineKeyboardButton(f"🗑️ {chat.title}", callback_data=f"rmch_{ch}")])
+            buttons.append([InlineKeyboardButton(f"🗑️ {chat.title}", callback_data=f"rmch_{ch}", style="danger")])
         except:
-            buttons.append([InlineKeyboardButton(f"🗑️ {ch}", callback_data=f"rmch_{ch}")])
+            buttons.append([InlineKeyboardButton(f"🗑️ {ch}", callback_data=f"rmch_{ch}", style="danger")])
     
-    buttons.append([InlineKeyboardButton("✖️ Cancel", callback_data="cancel")])
+    buttons.append([InlineKeyboardButton("✖️ Cancel", callback_data="cancel", style="danger")])
     
     await update.message.reply_text(
         "🗑️ <b>Which channel would you like to remove?</b>",
@@ -1704,7 +1706,7 @@ async def mychannels_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not channels:
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel")]
+            [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel", style="success")]
         ])
         return await update.message.reply_text(
             "📢 <b>YOUR CHANNELS</b>\n\n"
@@ -1726,17 +1728,17 @@ async def mychannels_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat = await context.bot.get_chat(int(ch))
             text += f"{i}. <b>{chat.title}</b>\n   <code>{ch}</code>\n\n"
             buttons.append([
-                InlineKeyboardButton(f"{chat.title}", callback_data="noop"),
-                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                InlineKeyboardButton(f"{chat.title}", callback_data="noop", style="primary"),
+                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
             ])
         except:
             text += f"{i}. <code>{ch}</code>\n\n"
             buttons.append([
-                InlineKeyboardButton(f"{ch}", callback_data="noop"),
-                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                InlineKeyboardButton(f"{ch}", callback_data="noop", style="primary"),
+                InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
             ])
     
-    buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel")])
+    buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel", style="success")])
     
     await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
 
@@ -1763,7 +1765,7 @@ async def remove_channel_callback(update: Update, context: ContextTypes.DEFAULT_
         await query.answer()
         bot_username = get_bot_username()
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{bot_username}?startchannel=true")]
+            [InlineKeyboardButton("➕ Add Bot To Channel", url=f"https://t.me/{bot_username}?startchannel=true", style="success")]
         ])
         await query.message.edit_text(
             "➕ <b>Add a Channel</b>\n\n"
@@ -1796,16 +1798,16 @@ async def remove_channel_callback(update: Update, context: ContextTypes.DEFAULT_
                         chat = await context.bot.get_chat(int(ch))
                         text += f"• <b>{chat.title}</b>\n  <code>{ch}</code>\n"
                         buttons.append([
-                            InlineKeyboardButton(f"{chat.title}", callback_data="noop"),
-                            InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                            InlineKeyboardButton(f"{chat.title}", callback_data="noop", style="primary"),
+                            InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
                         ])
                     except:
                         text += f"• <code>{ch}</code>\n"
                         buttons.append([
-                            InlineKeyboardButton(f"{ch}", callback_data="noop"),
-                            InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}")
+                            InlineKeyboardButton(f"{ch}", callback_data="noop", style="primary"),
+                            InlineKeyboardButton("🗑️ Delete", callback_data=f"rmch_{ch}", style="danger")
                         ])
-                buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel")])
+                buttons.append([InlineKeyboardButton("➕ Add New Channel", callback_data="add_new_channel", style="success")])
                 kb = InlineKeyboardMarkup(buttons)
             else:
                 text = (
@@ -1814,7 +1816,7 @@ async def remove_channel_callback(update: Update, context: ContextTypes.DEFAULT_
                     "📌 Add a new channel:"
                 )
                 kb = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel")]
+                    [InlineKeyboardButton("➕ Add Channel", callback_data="add_new_channel", style="success")]
                 ])
             
             await context.bot.send_message(
@@ -2061,13 +2063,13 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "sᴇʟᴇᴄᴛ ᴀɴ ᴏᴘᴛɪᴏɴ:"
     )
     admin_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 sᴛᴀᴛɪsᴛɪᴄs", callback_data="admin_stats"),
-         InlineKeyboardButton("⏱️ sᴛᴀᴛᴜs", callback_data="admin_status")],
-        [InlineKeyboardButton("👥 ᴜsᴇʀs", callback_data="admin_users"),
-         InlineKeyboardButton("🚫 ʙᴀɴ ᴜsᴇʀ", callback_data="admin_ban")],
-        [InlineKeyboardButton("✅ ᴜɴʙᴀɴ ᴜsᴇʀ", callback_data="admin_unban"),
-         InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast")],
-        [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back")],
+        [InlineKeyboardButton("📊 sᴛᴀᴛɪsᴛɪᴄs", callback_data="admin_stats", style="primary"),
+         InlineKeyboardButton("⏱️ sᴛᴀᴛᴜs", callback_data="admin_status", style="success")],
+        [InlineKeyboardButton("👥 ᴜsᴇʀs", callback_data="admin_users", style="primary"),
+         InlineKeyboardButton("🚫 ʙᴀɴ ᴜsᴇʀ", callback_data="admin_ban", style="danger")],
+        [InlineKeyboardButton("✅ ᴜɴʙᴀɴ ᴜsᴇʀ", callback_data="admin_unban", style="success"),
+         InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast", style="primary")],
+        [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="menu_back", style="primary")],
     ])
     
     # Get home menu banner
